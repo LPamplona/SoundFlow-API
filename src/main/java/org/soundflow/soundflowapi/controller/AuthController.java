@@ -2,11 +2,11 @@ package org.soundflow.soundflowapi.controller;
 
 
 import jakarta.validation.Valid;
-import org.soundflow.soundflowapi.dto.user.UserLoginRequest;
-import org.soundflow.soundflowapi.dto.user.UserLoginResponse;
-import org.soundflow.soundflowapi.dto.user.UserRegisterRequest;
-import org.soundflow.soundflowapi.dto.user.UserRegisterResponse;
+import org.soundflow.soundflowapi.dto.jwt.JwtLoginResponse;
+import org.soundflow.soundflowapi.dto.user.*;
+import org.soundflow.soundflowapi.security.jwt.JwtUtils;
 import org.soundflow.soundflowapi.service.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,10 +18,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+  @Autowired
   private final UserService userService;
 
-  public AuthController(UserService userService) {
+  @Autowired
+  private final JwtUtils jwtUtils;
+
+  public AuthController(UserService userService, JwtUtils jwtUtils) {
     this.userService = userService;
+    this.jwtUtils = jwtUtils;
   }
 
   @PostMapping("/register")
@@ -36,13 +41,21 @@ public class AuthController {
   }
 
   @PostMapping("/login")
-  public ResponseEntity<UserLoginResponse> login (
+  public ResponseEntity<JwtLoginResponse> login (
       @Valid @RequestBody UserLoginRequest request
   ) {
     UserLoginResponse user = userService.login(request);
 
-    return ResponseEntity
-        .status(HttpStatus.OK)
-        .body(user);
+    String token = jwtUtils.generateJwtToken(user.getEmail(), user.getRole());
+
+    JwtLoginResponse response = new JwtLoginResponse(
+            token,
+            user.getId(),
+            user.getName(),
+            user.getEmail(),
+            user.getRole()
+    );
+
+    return ResponseEntity.status(HttpStatus.OK).body(response);
   }
 }
